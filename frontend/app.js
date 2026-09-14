@@ -17,13 +17,14 @@ const badge=choice=>`<span class="badge ${choice==='愿意尝试'||choice==='com
 let token=sessionStorage.getItem('poke-token'), me=null, view=0, pollTimer=null, toastTimer=null, authMode='login', currentRun=null, lastRuns=[], chatBusy=false;
 let ideaDraft=sessionStorage.getItem('poke-idea')||'', chatDraft='';
 function toast(message){$('#toast').textContent=message;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').textContent='',6000)}
-let sessionEpoch=0;
+let sessionEpoch=0,runLoadedAt=0;
 async function api(path,{method='GET',data,raw,download=false}={}){
  const epoch=sessionEpoch,requestToken=token;
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),90000);
  try{
   const res=await fetch('/api'+path,{method,headers:{...(requestToken?{Authorization:'Bearer '+requestToken}:{}),...(data?{'Content-Type':'application/json'}:{})},body:raw|| (data?JSON.stringify(data):undefined),signal:ctrl.signal});
   if(epoch!==sessionEpoch)throw new DOMException('旧会话请求已忽略','AbortError');
+  if(res.ok&&method!=='GET'){currentRun=null;runLoadedAt=0}
   if(!res.ok){let err;try{err=await res.json()}catch{err={detail:'服务暂时无法连接，请稍后重试。'}}
    if(res.status===401&&!['/auth/login','/auth/register'].includes(path)){clearSession();route()}
    throw Error(typeof err.detail==='string'?err.detail:'输入内容不符合要求，请检查长度和格式。');
@@ -99,7 +100,7 @@ function renderRun(r,tab){
  }
 }
 async function runAction(path){const b=document.activeElement;if(b?.tagName==='BUTTON')b.disabled=true;try{await api(path,{method:'POST'});route();refreshMe().catch(()=>{})}catch(err){toast(err.message)}finally{if(b)b.disabled=false}}
-async function loadRun(id,tab,n){try{const r=await api('/runs/'+id);if(n!==view)return;renderRun(r,tab);if(r.status==='running')pollTimer=setTimeout(()=>loadRun(id,tab,n),3000)}catch(err){if(n!==view)return;const t=$('#poll-error');if(t)t.textContent=err.message;else $('#main').innerHTML=title('实验暂时无法读取',err.message,'<a class="btn" href="#/history">返回历史</a>');pollTimer=setTimeout(()=>loadRun(id,tab,n),10000)}}
+async function loadRun(id,tab,n){if(currentRun?.id===id&&currentRun.status==='completed'&&Date.now()-runLoadedAt<30000){if(n===view)renderRun(currentRun,tab);return}try{const r=await api('/runs/'+id);if(n!==view)return;runLoadedAt=Date.now();renderRun(r,tab);if(r.status==='running')pollTimer=setTimeout(()=>loadRun(id,tab,n),3000)}catch(err){if(n!==view)return;const t=$('#poll-error');if(t)t.textContent=err.message;else $('#main').innerHTML=title('实验暂时无法读取',err.message,'<a class="btn" href="#/history">返回历史</a>');pollTimer=setTimeout(()=>loadRun(id,tab,n),10000)}}
 async function historyView(n){$('#main').innerHTML=title('历史实验','保存每一次思考，也看见想法的变化。','<a class="btn primary" href="#/new">'+icon('plus')+'新建实验</a>')+`<div class="history-tools"><div class="search">${icon('search')}<input class="input" id="history-search" aria-label="搜索概念" placeholder="搜索你的想法…"></div><button class="btn" id="refresh-history">${icon('history')}刷新历史</button></div><section class="panel history-list" id="history-list"><div class="empty">正在读取实验…</div></section>`;
  $('#refresh-history').onclick=()=>route();try{const data=await api('/runs');if(n!==view)return;lastRuns=data;const draw=()=>{const query=$('#history-search').value.toLowerCase(),rows=data.filter(r=>r.concept.toLowerCase().includes(query));$('#history-list').innerHTML=rows.length?rows.map(r=>`<article class="history-row"><div class="history-icon">${icon(r.parent_id?'flask':'file')}</div><div class="history-info"><h3>${e(r.concept)}</h3><div class="muted">${e(date(r.created_at))}　·　${r.parent_id?'单变量挑战':'原始实验'}</div></div>${badge(r.status)}<a class="btn small" href="#/run/${e(r.id)}/roles" aria-label="打开实验：${e(r.concept)}">打开${icon('arrow')}</a></article>`).join(''):`<div class="empty">${icon('history')}<h3>${query?'没有找到匹配的实验':'第一个好点子，从这里开始'}</h3><p>${query?'试试更短的关键词。':'用自己的话描述想法，让五个角色帮你找到值得验证的问题。'}</p>${query?'':'<a class="btn primary" href="#/new">新建实验</a>'}</div>`};$('#history-search').oninput=draw;draw()}catch(err){if(n===view)$('#history-list').innerHTML=`<div class="empty"><p>${e(err.message)}</p></div>`}}
 function guideView(){

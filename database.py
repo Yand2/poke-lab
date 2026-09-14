@@ -1,5 +1,24 @@
 """SQLite locally, PostgreSQL in cloud; compatibility for the app's fixed SQL."""
 import os,re,sqlite3
+from threading import Lock
+_pool=None
+_pool_url=None
+_pool_lock=Lock()
+def get_pool(url):
+    global _pool,_pool_url
+    from psycopg_pool import ConnectionPool
+    from psycopg.rows import dict_row
+    with _pool_lock:
+        if _pool is None or _pool_url!=url:
+            if _pool is not None:_pool.close()
+            _pool=ConnectionPool(url,min_size=0,max_size=5,timeout=20,max_idle=60,max_lifetime=600,check=ConnectionPool.check_connection,kwargs={"connect_timeout":10,"row_factory":dict_row,"prepare_threshold":None},open=True)
+            _pool_url=url
+        return _pool
+def close_pool():
+    global _pool,_pool_url
+    with _pool_lock:
+        if _pool is not None:_pool.close()
+        _pool=None;_pool_url=None
 class Record(dict):
     def __getitem__(self,key):
         return list(self.values())[key] if isinstance(key,int) else super().__getitem__(key)
@@ -21,11 +40,10 @@ def placeholders(sql):
     return ''.join(p if i%2 else p.replace('%','%%').replace('?','%s') for i,p in enumerate(parts))
 class Postgres:
     def __init__(self,url):
-        import psycopg
-        from psycopg.rows import dict_row
-        self.db=psycopg.connect(url,connect_timeout=15,row_factory=dict_row,prepare_threshold=None)
+        self._connection=get_pool(url).connection()
+        self.db=self._connection.__enter__()
     def __enter__(self):return self
-    def __exit__(self,typ,value,tb):return self.db.__exit__(typ,value,tb)
+    def __exit__(self,typ,value,tb):return self._connection.__exit__(typ,value,tb)
     def commit(self):self.db.commit()
     def execute(self,sql,params=()):
         import psycopg

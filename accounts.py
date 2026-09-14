@@ -59,12 +59,11 @@ def install(app):
         uid=user_id.get()
         day=datetime.now(timezone.utc).date().isoformat()
         with b.connect() as db:
-            user=db.execute('SELECT username FROM users WHERE id=?',(uid,)).fetchone()
-            def budget(bucket,setting):
-                row=db.execute('SELECT count FROM ai_budgets WHERE bucket=? AND day=?',(bucket,day)).fetchone()
-                limit=int(os.getenv(setting,'0')); used=row['count'] if row else 0
+            user=db.execute('SELECT u.username, EXISTS(SELECT 1 FROM admin_roles a WHERE a.user_id=u.id) AS is_admin, COALESCE(ub.count,0) AS user_used, COALESCE(gb.count,0) AS global_used FROM users u LEFT JOIN ai_budgets ub ON ub.bucket=? AND ub.day=? LEFT JOIN ai_budgets gb ON gb.bucket=? AND gb.day=? WHERE u.id=?',('user:'+uid,day,'global',day,uid)).fetchone()
+            def budget(used,setting):
+                limit=int(os.getenv(setting,'0'))
                 return {'limit':limit,'used':used,'remaining':max(0,limit-used) if limit>0 else None}
-            return {'username':user['username'],'is_admin':bool(db.execute('SELECT 1 FROM admin_roles WHERE user_id=?',(uid,)).fetchone()),'user_budget':budget('user:'+uid,'AI_DAILY_USER_LIMIT'),'global_budget':budget('global','AI_DAILY_GLOBAL_LIMIT'),'reset_timezone':'UTC'}
+            return {'username':user['username'],'is_admin':bool(user['is_admin']),'user_budget':budget(user['user_used'],'AI_DAILY_USER_LIMIT'),'global_budget':budget(user['global_used'],'AI_DAILY_GLOBAL_LIMIT'),'reset_timezone':'UTC'}
     @app.post('/auth/logout')
     def logout(request:Request):
         with b.connect() as db: db.execute('DELETE FROM sessions WHERE token_hash=?',(hashlib.sha256(request.headers.get('authorization','').removeprefix('Bearer ').encode()).hexdigest(),))
@@ -73,21 +72,26 @@ def install(app):
     async def protect(request,call_next):
         path=request.url.path.removeprefix(request.scope.get('root_path',''))
         if path in ['/health','/auth/register','/auth/login','/auth/logout','/docs','/openapi.json','/redoc']: return await call_next(request)
-        token=request.headers.get('authorization','').removeprefix('Bearer ')
-        with b.connect() as db:
-            row=db.execute('SELECT user_id FROM sessions WHERE token_hash=? AND expires>?',(hashlib.sha256(token.encode()).hexdigest(),time.time())).fetchone()
-            if not row: return JSONResponse({'detail':'请先登录。'},status_code=401)
-            uid=row['user_id']; parts=path.strip('/').split('/')
-            if parts[0]=='admin' and not db.execute('SELECT 1 FROM admin_roles WHERE user_id=?',(uid,)).fetchone():
-                return JSONResponse({'detail':'仅管理员可以访问。'},status_code=403)
-            if len(parts)>1 and parts[0] in ['runs','conversations']:
-                table=parts[0]
-                owned=db.execute(f'SELECT 1 FROM {table} WHERE id=? AND owner_id=?',(parts[1],uid)).fetchone()
-                if not owned: return JSONResponse({'detail':'记录不存在或无权访问。'},status_code=404)
-        if request.method=='POST' and (path in ['/runs','/experiments','/conversations','/idea-drafts'] or (parts[0] in ['runs','conversations'] and parts[-1] in ['challenge','messages','retry','diagnosis'])):
-            from usage_limits import reserve,QuotaExceeded
-            try: reserve(uid)
-            except QuotaExceeded as exc:return JSONResponse({'detail':str(exc)},status_code=429)
+        def authorize():
+            token=request.headers.get('authorization','').removeprefix('Bearer ')
+            with b.connect() as db:
+                row=db.execute('SELECT user_id FROM sessions WHERE token_hash=? AND expires>?',(hashlib.sha256(token.encode()).hexdigest(),time.time())).fetchone()
+                if not row: return JSONResponse({'detail':'请先登录。'},status_code=401)
+                uid=row['user_id']; parts=path.strip('/').split('/')
+                if parts[0]=='admin' and not db.execute('SELECT 1 FROM admin_roles WHERE user_id=?',(uid,)).fetchone():
+                    return JSONResponse({'detail':'仅管理员可以访问。'},status_code=403)
+                if len(parts)>1 and parts[0] in ['runs','conversations']:
+                    table=parts[0]
+                    owned=db.execute(f'SELECT 1 FROM {table} WHERE id=? AND owner_id=?',(parts[1],uid)).fetchone()
+                    if not owned: return JSONResponse({'detail':'记录不存在或无权访问。'},status_code=404)
+            if request.method=='POST' and (path in ['/runs','/experiments','/conversations','/idea-drafts'] or (parts[0] in ['runs','conversations'] and parts[-1] in ['challenge','messages','retry','diagnosis'])):
+                from usage_limits import reserve,QuotaExceeded
+                try: reserve(uid)
+                except QuotaExceeded as exc:return JSONResponse({'detail':str(exc)},status_code=429)
+            return uid
+        from starlette.concurrency import run_in_threadpool
+        uid=await run_in_threadpool(authorize)
+        if isinstance(uid,JSONResponse):return uid
         ctx=user_id.set(uid)
         try: return await call_next(request)
         finally: user_id.reset(ctx)

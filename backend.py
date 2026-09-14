@@ -81,7 +81,11 @@ async def lifespan(app):
     with connect() as db:init_planning(db)
     from admin_service import bootstrap_admin
     bootstrap_admin()
-    yield
+    try:
+        yield
+    finally:
+        from database import close_pool
+        close_pool()
 
 app = FastAPI(title='Poke the Hypothetical', version='1.0.0', lifespan=lifespan)
 

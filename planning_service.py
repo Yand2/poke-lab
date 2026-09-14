@@ -75,7 +75,7 @@ def work(jid,kind,idea,evidence):
     import backend as b
     try:
         b.load_config()
-        if kind=='cost':result=request_json(COST_PROMPT,idea.model_dump(),CostResult).model_dump()
+        if kind=='cost':result=request_json(COST_PROMPT,idea.model_dump(),CostResult,thinking='disabled').model_dump()
         else:
             def check(r):
                 ids={s['id'] for s in evidence}

@@ -13,11 +13,12 @@ def main():
         raise RuntimeError('Configure DATABASE_URL before deployment')
     try:
         children.append(subprocess.Popen([sys.executable,'-m','uvicorn','backend:app','--host','127.0.0.1','--port','8765']))
-        for _ in range(60):
+        deadline=time.monotonic()+180
+        while time.monotonic()<deadline:
             if children[0].poll() is not None:raise RuntimeError('Backend failed to start')
             try:
-                with urllib.request.urlopen('http://127.0.0.1:8765/health',timeout=1):break
-            except OSError:time.sleep(.5)
+                with urllib.request.urlopen('http://127.0.0.1:8765/health',timeout=20):break
+            except OSError:time.sleep(1)
         else:raise RuntimeError('Backend startup timeout')
         children.append(subprocess.Popen([sys.executable,'-m','streamlit','run','app.py','--server.address','0.0.0.0','--server.port',os.getenv('PORT','8501'),'--server.enableXsrfProtection','true','--server.enableCORS','true']))
         while all(c.poll() is None for c in children):time.sleep(.5)

@@ -84,7 +84,7 @@ def install(app):
                 table=parts[0]
                 owned=db.execute(f'SELECT 1 FROM {table} WHERE id=? AND owner_id=?',(parts[1],uid)).fetchone()
                 if not owned: return JSONResponse({'detail':'记录不存在或无权访问。'},status_code=404)
-        if request.method=='POST' and (path in ['/runs','/experiments','/conversations'] or (parts[0] in ['runs','conversations'] and parts[-1] in ['challenge','messages','retry','diagnosis'])):
+        if request.method=='POST' and (path in ['/runs','/experiments','/conversations','/idea-drafts'] or (parts[0] in ['runs','conversations'] and parts[-1] in ['challenge','messages','retry','diagnosis'])):
             from usage_limits import reserve,QuotaExceeded
             try: reserve(uid)
             except QuotaExceeded as exc:return JSONResponse({'detail':str(exc)},status_code=429)

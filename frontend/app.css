@@ -27,3 +27,15 @@
 @media(max-width:1000px){.process-panel{display:none}}
 @media(max-width:760px){.file-tools{gap:9px;font-size:10px}.upload-label{flex-shrink:0}.admin-stats{gap:9px}.admin-stat{padding:14px 10px;gap:8px}.admin-stat .label-icon{display:none}.admin-stat strong{font-size:23px}.admin-stat p{font-size:10px}.admin-dialog{padding:20px}.admin-table th,.admin-table td{padding:12px}.auth-star.s1{left:4%;top:8%;font-size:40px}.auth-star.s2{right:8%;top:80%}.auth-orbit{left:-100px;opacity:.5}.auth-orbit.a3{right:-300px}.workspace-scroll{scrollbar-gutter:auto}}
 @media(prefers-reduced-motion:reduce){.letter{animation:none!important}.btn:hover,.nav-link:hover{transform:none!important}}
+
+/* Sequential imagination wave: readable at rest, motion preference respected. */
+.hero .imagination-title{line-height:1.55;isolation:isolate}
+.hero .imagination-title .title-lead{color:#243354}
+.imagination-title .bounce-title{position:relative;white-space:nowrap}
+.imagination-title .letter{color:#6950d4;animation:imagination-wave 5.8s cubic-bezier(.22,.7,.3,1) infinite;transform-origin:50% 85%}
+.imagination-title .l1{animation-delay:.09s}.imagination-title .l2{animation-delay:.18s}.imagination-title .l3{animation-delay:.27s}.imagination-title .l4{animation-delay:.36s}.imagination-title .l5{animation-delay:.45s}.imagination-title .l6{animation-delay:.54s}.imagination-title .l7{animation-delay:.63s}.imagination-title .l8{animation-delay:.72s}.imagination-title .l9{animation-delay:.81s}
+.imagination-title .bounce-title:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:50%;background:linear-gradient(90deg,transparent,#8670ee,#47bfd0,transparent);transform:scaleX(.35);opacity:.25;animation:imagination-trail 5.8s ease-in-out infinite}
+@keyframes imagination-wave{0%,25%,100%{transform:translateY(0) rotate(0);color:#6950d4;text-shadow:0 0 0 transparent}7%{transform:translateY(-9px) rotate(-3deg) scale(1.04);color:#288fae;text-shadow:0 5px 16px #7971e85c}13%{transform:translateY(2px) rotate(1deg);color:#9261df}19%{transform:translateY(-2px) rotate(0)}}
+@keyframes imagination-trail{0%,45%,100%{opacity:.2;transform:scaleX(.35)}20%{opacity:.8;transform:scaleX(1)}}
+@media(max-width:600px){.hero .imagination-title{font-size:clamp(19px,5.8vw,25px);max-width:none;letter-spacing:-.6px}.imagination-title .letter{animation-name:imagination-wave}}
+@media(prefers-reduced-motion:reduce){.imagination-title .letter,.imagination-title .bounce-title:after{animation:none!important}.imagination-title .bounce-title:after{transform:scaleX(1);opacity:.3}}

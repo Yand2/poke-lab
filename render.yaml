@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: poke-lab
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: REQUIRE_POSTGRES
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://api.deepseek.com
+      - key: AI_DAILY_USER_LIMIT
+        value: "10"
+      - key: AI_DAILY_GLOBAL_LIMIT
+        value: "100"

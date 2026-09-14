@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!requirements-runtime.txt
+!*.py
+!style.css
+!.streamlit/
+!.streamlit/config.toml

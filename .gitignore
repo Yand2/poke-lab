@@ -1,0 +1,11 @@
+.venv/
+data/*.sqlite3*
+work/
+__pycache__/
+.env
+api_config.toml
+.pytest_cache/
+
+reports/
+*.log
+.env.*

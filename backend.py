@@ -76,6 +76,8 @@ def init_db():
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    from admin_service import bootstrap_admin
+    bootstrap_admin()
     yield
 
 app = FastAPI(title='Poke the Hypothetical', version='1.0.0', lifespan=lifespan)
@@ -289,3 +291,8 @@ from accounts import install as install_accounts
 install_accounts(app)
 from experiment_text import install as install_experiments
 install_experiments(app)
+
+from admin_service import install_admin
+install_admin(app)
+from document_extract import install_documents
+install_documents(app)

@@ -72,7 +72,7 @@ def install(app):
     @app.middleware('http')
     async def protect(request,call_next):
         path=request.url.path.removeprefix(request.scope.get('root_path',''))
-        if path in ['/health','/auth/register','/auth/login','/docs','/openapi.json','/redoc']: return await call_next(request)
+        if path in ['/health','/auth/register','/auth/login','/auth/logout','/docs','/openapi.json','/redoc']: return await call_next(request)
         token=request.headers.get('authorization','').removeprefix('Bearer ')
         with b.connect() as db:
             row=db.execute('SELECT user_id FROM sessions WHERE token_hash=? AND expires>?',(hashlib.sha256(token.encode()).hexdigest(),time.time())).fetchone()

@@ -14,3 +14,7 @@
 保留FastAPI、Neon、DeepSeek和Word导出，新增独立静态前端。无需CDN或额外前端托管服务。使用浏览器原生ES模块、CSS和SVG，所有用户/模型内容先转义后展示。
 Streamlit可通过主题与自定义组件扩展，不是绝对不能定制。此项目大量CSS依赖Streamlit DOM结构，精细交互需要独立状态控制，因此选择独立前端。
 官方能力核验：https://docs.streamlit.io/develop/concepts/custom-components/components-v2。
+
+
+## 管理与文档导入升级（2026-09-14）
+新增管理员后台、文档提取接口、等高卡片、固定侧栏与右侧独立滚动、标题动画及登录背景。ADMIN_BOOTSTRAP_SALT 与 ADMIN_BOOTSTRAP_HASH 私密环境变量仅在首次创建管理员时使用，不覆盖后续密码。密码及密钥不应提交到仓库。支持 DOCX/PDF/TXT/MD，导入限制详见使用说明。单用户每日100次与现有全站100次额度分别生效。

@@ -10,16 +10,32 @@ export function mountIdeaHelper({api,e,icon,refreshMe,toast}){
  const input=document.querySelector('#idea'),form=document.querySelector('#idea-form');
  const tools=document.createElement('div');tools.className='idea-assist-tools';tools.innerHTML=`<div><b>只有一句话？也可以开始。</b><p>让 AI 先给一份可修改的草稿，再由你决定分析什么。</p></div><button class="btn" type="button" id="prepare-idea">${icon('spark')}AI 帮我完善</button><span class="tiny muted">完善草稿计1次；生成实验另计1次</span>`;
  input.before(tools);const target=document.createElement('section');target.id='idea-preparation';target.setAttribute('aria-live','polite');form.after(target);
- const button=tools.querySelector('button');let busy=false;
+ const button=tools.querySelector('button');let busy=false,recover=null;
+ async function waitDraft(job){
+  for(let i=0;i<180;i++){
+   if(!target.isConnected)throw Error('返回新建实验可恢复草稿。');
+   if(job.status==='completed')return job.result;
+   if(job.status==='failed')throw Error(job.error||'草稿生成失败，原文已保留。');
+   target.innerHTML='<p class="notice">AI 正在后台完善草稿，可能需要几分钟。离开本页后可恢复结果，请勿重复提交。</p>';
+   await new Promise(r=>setTimeout(r,2500));
+   job=await api('/idea-drafts/'+job.id);
+  }
+  throw Error('草稿仍在后台处理，稍后返回新建实验可恢复。');
+ }
+ api('/idea-drafts/latest').then(job=>{
+  if(!job||busy||!target.isConnected)return;
+  const resume=document.createElement('button');resume.className='btn';resume.type='button';resume.textContent='恢复上次完善草稿';
+  resume.onclick=()=>{recover=job;button.click()};target.append(resume);
+ }).catch(()=>{});
  button.onclick=async()=>{
-  if(busy)return;const original=input.value.trim();if(!original){document.querySelector('#idea-error').textContent='先写一句你的困扰或想做的事情，例如：开会后总忘记谁负责什么。';input.focus();return}
+  if(busy)return;const original=recover?recover.text:input.value.trim();if(!original){document.querySelector('#idea-error').textContent='先写一句你的困扰或想做的事情，例如：开会后总忘记谁负责什么。';input.focus();return}
   document.querySelector('#idea-error').textContent='';busy=true;button.disabled=true;button.innerHTML='<span class="spinner"></span> 正在完善…';target.innerHTML='<p class="notice">正在整理可能的方向。你可以继续思考，生成后请检查 AI 的建议。</p>';
-  try{const d=await api('/idea-drafts',{method:'POST',data:{text:original}});if(!target.isConnected)return;
+  try{const job=recover||await api('/idea-drafts',{method:'POST',data:{text:original}}).catch(err=>{throw Error('未确认草稿提交结果。请刷新本页，点击“恢复上次完善草稿”查看；不要连续提交。'+(err.message.includes('额度')?err.message:''))});recover=null;const d=await waitDraft(job);if(!target.isConnected)return;
    const fields=[['concept','商业概念','你准备做什么'],['pain_point','核心痛点','想解决什么麻烦'],['alternative','现有替代方案','大家现在怎么办'],['target_user','目标用户','先帮助哪类人'],['business_model','收费方式','不知道可留空']];
    target.innerHTML=`<div class="draft-heading"><h3>你的实验草稿</h3><p>以下内容可编辑或留空。尤其要检查“AI建议”，它们不是已确认事实。</p></div><div class="draft-fields">${fields.map(([key,label,hint])=>`<div class="field"><label for="draft-${key}">${label}<span class="badge">${e(d[key].source)}</span></label><textarea class="input" id="draft-${key}" rows="2" maxlength="1000" placeholder="${hint}">${e(d[key].value)}</textarea>${d[key].evidence?`<small class="muted">原文依据：${e(d[key].evidence)}</small>`:''}</div>`).join('')}</div>${d.questions?.length?`<div class="notice"><b>还可以想一想（不必全部回答）</b><ul>${d.questions.map(q=>`<li>${e(q)}</li>`).join('')}</ul></div>`:''}<div class="draft-actions"><button type="button" class="btn primary" id="apply-draft">使用这份草稿</button><button type="button" class="btn" id="dismiss-draft">保留原文</button><span class="tiny muted">应用后仍可修改，不会自动开始分析。</span></div>`;
    target.querySelector('#dismiss-draft').onclick=()=>{target.innerHTML='';input.focus()};
    target.querySelector('#apply-draft').onclick=()=>{
-    if(input.value.trim()!==original){toast('原文已修改，请保留当前内容，重新点击“AI 帮我完善”生成匹配的草稿。');return}
+    if(input.value.trim()&&input.value.trim()!==original){toast('原文已修改，请保留当前内容，重新点击“AI 帮我完善”生成匹配的草稿。');return}
     const values=fields.map(([key,label])=>{const value=target.querySelector('#draft-'+key).value.trim();return value?label+'（'+(d[key].source==='原文提取'?'用户检查后的描述':'补充方向，待验证假设')+'）：'+value:''}).filter(Boolean);
     const combined=original+'\n\n【已检查的实验草稿；补充方向仍需真实用户验证】\n'+values.join('\n');
     if(combined.length>30000){toast('合并后超过30,000字，请先精简原文。');return}

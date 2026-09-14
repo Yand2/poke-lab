@@ -1,3 +1,4 @@
+from urllib.parse import quote
 """Local API for Poke. Run with uvicorn backend:app --port 8000."""
 import json
 import os
@@ -254,7 +255,7 @@ def report(run_id:str):
     r = get_run(run_id)
     if r['status']!='completed':
         raise HTTPException(409,'分析尚未完成，暂不能生成报告。')
-    lines = ['# 创新概念可行性与 Pivot（转型）诊断报告',f'实验编号：{r["id"]}',f'创建时间：{r["created_at"]}',f'模式：{r["mode"]} / {r["model"]}',
+    lines = ['# 创新概念可行性与Pivot（转型）诊断报告',f'实验编号：{r["id"]}',f'创建时间：{r["created_at"]}',f'模式：{r["mode"]} / {r["model"]}',
              '> AI 建议不是市场预测；结论须由真人验证。',
              '## 原始输入',f'概念：{r["concept"]}',f'痛点：{r["pain_point"]}',f'替代方案：{r["alternative"]}']
     if r.get('diagnosis_json'):
@@ -278,13 +279,13 @@ def report(run_id:str):
               '请他们回顾最近一次遇到痛点的经历，展示当前替代方案，并完成一次真实任务。',
               '记录任务是否完成、付出时间、拒绝原因和原话。不要用“你会不会购买”代替行为证据。',
               '挑战实验只比较一个条件，保持任务与人群一致。若仍出现同类阻力，修订假设后再测。']
-    return PlainTextResponse('\n\n'.join(lines),media_type='text/markdown; charset=utf-8',headers={'Content-Disposition':f'attachment; filename="poke-{run_id}.md"'})
+    return PlainTextResponse('\n\n'.join(lines),media_type='text/markdown; charset=utf-8',headers={'Content-Disposition':"attachment; filename=report.md; filename*=UTF-8''"+quote('创新概念可行性与Pivot（转型）诊断报告.md')})
 
 @app.get('/runs/{run_id}/report.docx')
 def word_report(run_id:str):
     from word_report import export_docx
     markdown=report(run_id).body.decode('utf-8')
-    return Response(export_docx(markdown),media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',headers={'Content-Disposition':f'attachment; filename="poke-{run_id}.docx"'})
+    return Response(export_docx(markdown),media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',headers={'Content-Disposition':"attachment; filename=report.docx; filename*=UTF-8''"+quote('创新概念可行性与Pivot（转型）诊断报告.docx')})
 
 from chat_service import install_chat
 install_chat(app)

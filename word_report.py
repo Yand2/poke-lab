@@ -55,7 +55,7 @@ def export_docx(markdown):
     root=Element('{'+W+'}document');body=node(root,'body')
     header=Element('{'+W+'}hdr');paragraph(header,'POKE   /   创新概念研究','Caption')
     footer=Element('{'+W+'}ftr');p=paragraph(footer,'AI 模拟分析  ·  结论需真人验证     |     ','Caption');field=node(p,'fldSimple',{'instr':'PAGE'});text_run(field,'1')
-    paragraph(body,'创新概念可行性与转型诊断报告','Title')
+    paragraph(body,'创新概念可行性与Pivot（转型）诊断报告','Title')
     paragraph(body,'五种视角  理解阻力与下一步验证方向','Subtitle')
     blocks=markdown.split('\n\n')
     metadata=[x for x in blocks if x.startswith(('实验编号：','创建时间：','模式：'))]

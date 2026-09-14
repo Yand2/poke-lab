@@ -88,7 +88,7 @@ def install_admin(app):
             roots=[r['id'] for r in db.execute('SELECT id FROM runs WHERE owner_id=? AND parent_id IS NULL',(uid,))]
             for rid in roots:remove_runs(db,run_family(db,rid))
             for c in db.execute('SELECT id FROM conversations WHERE owner_id=?',(uid,)).fetchall():remove_chat(db,c['id'])
-            db.execute('DELETE FROM sessions WHERE user_id=?',(uid,));db.execute('DELETE FROM ai_budgets WHERE bucket=?',('user:'+uid,))
+            db.execute('DELETE FROM planning_jobs WHERE owner_id=?',(uid,));db.execute('DELETE FROM sessions WHERE user_id=?',(uid,));db.execute('DELETE FROM ai_budgets WHERE bucket=?',('user:'+uid,))
             db.execute('DELETE FROM login_attempts WHERE name=?',(old['username'].casefold(),));db.execute('DELETE FROM users WHERE id=?',(uid,));audit(db,'delete_user_and_data',uid)
         return {'ok':True}
     @app.get('/admin/runs')

@@ -76,6 +76,8 @@ def init_db():
 @asynccontextmanager
 async def lifespan(app):
     init_db()
+    from planning_service import init as init_planning
+    with connect() as db:init_planning(db)
     from admin_service import bootstrap_admin
     bootstrap_admin()
     yield
@@ -296,3 +298,6 @@ from admin_service import install_admin
 install_admin(app)
 from document_extract import install_documents
 install_documents(app)
+
+from planning_service import install as install_planning
+install_planning(app)

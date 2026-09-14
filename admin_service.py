@@ -3,6 +3,7 @@ import os,hashlib,secrets,time,sqlite3,uuid
 from fastapi import HTTPException,Query
 from pydantic import BaseModel,Field,ConfigDict
 from accounts import user_id
+from typing import Literal
 
 def bootstrap_admin():
     import backend as b
@@ -22,6 +23,10 @@ class UserEdit(BaseModel):
     model_config=ConfigDict(extra='forbid')
     username:str=Field(min_length=3,max_length=40,pattern=r'^[A-Za-z0-9_\-\u4e00-\u9fff]+$')
     password:str|None=Field(default=None,min_length=8,max_length=128)
+class UserCreate(UserEdit):
+    password:str=Field(min_length=8,max_length=128)
+    role:Literal['user','admin']='user'
+
 class RunEdit(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     text:str=Field(min_length=1,max_length=30000)
@@ -64,6 +69,18 @@ def install_admin(app):
         with b.connect() as db:
             require_admin(db)
             return {'items':[dict(r,password_status='已加密（scrypt）') for r in db.execute('SELECT u.id,u.username,u.created_at,CASE WHEN a.user_id IS NULL THEN 0 ELSE 1 END AS is_admin FROM users u LEFT JOIN admin_roles a ON a.user_id=u.id WHERE lower(u.username) LIKE lower(?) ORDER BY u.created_at DESC LIMIT ? OFFSET ?',('%'+q+'%',limit,offset))]}
+    @app.post('/admin/users',status_code=201)
+    def create_user(data:UserCreate):
+        with b.connect() as db:
+            require_admin(db)
+            if data.username.casefold()=='admin':raise HTTPException(409,'admin 为系统保留账号名，请使用其他名称。')
+            uid=secrets.token_hex(16);salt=secrets.token_hex(16)
+            hashed=hashlib.scrypt(data.password.encode(),salt=bytes.fromhex(salt),n=16384,r=8,p=1).hex()
+            try:db.execute('INSERT INTO users(id,username,salt,password_hash,created_at) VALUES(?,?,?,?,?)',(uid,data.username,salt,hashed,time.time()))
+            except sqlite3.IntegrityError:raise HTTPException(409,'用户名已存在。')
+            if data.role=='admin':db.execute('INSERT INTO admin_roles(user_id) VALUES(?)',(uid,))
+            audit(db,'create_admin' if data.role=='admin' else 'create_user',uid)
+        return {'id':uid,'username':data.username,'is_admin':data.role=='admin'}
     @app.patch('/admin/users/{uid}')
     def edit_user(uid:str,data:UserEdit):
         with b.connect() as db:

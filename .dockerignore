@@ -5,3 +5,6 @@
 !style.css
 !.streamlit/
 !.streamlit/config.toml
+
+!frontend/
+!frontend/**

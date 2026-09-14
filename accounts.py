@@ -50,13 +50,26 @@ def install(app):
                 raise HTTPException(401,'用户名或密码错误。')
             db.execute('DELETE FROM login_attempts WHERE name=?',(name,))
             return session(db,row['id'],row['username'])
+    @app.get('/auth/me')
+    def me():
+        from datetime import datetime, timezone
+        import os
+        uid=user_id.get()
+        day=datetime.now(timezone.utc).date().isoformat()
+        with b.connect() as db:
+            user=db.execute('SELECT username FROM users WHERE id=?',(uid,)).fetchone()
+            def budget(bucket,setting):
+                row=db.execute('SELECT count FROM ai_budgets WHERE bucket=? AND day=?',(bucket,day)).fetchone()
+                limit=int(os.getenv(setting,'0')); used=row['count'] if row else 0
+                return {'limit':limit,'used':used,'remaining':max(0,limit-used) if limit>0 else None}
+            return {'username':user['username'],'user_budget':budget('user:'+uid,'AI_DAILY_USER_LIMIT'),'global_budget':budget('global','AI_DAILY_GLOBAL_LIMIT'),'reset_timezone':'UTC'}
     @app.post('/auth/logout')
     def logout(request:Request):
         with b.connect() as db: db.execute('DELETE FROM sessions WHERE token_hash=?',(hashlib.sha256(request.headers.get('authorization','').removeprefix('Bearer ').encode()).hexdigest(),))
         return {'ok':True}
     @app.middleware('http')
     async def protect(request,call_next):
-        path=request.url.path
+        path=request.url.path.removeprefix(request.scope.get('root_path',''))
         if path in ['/health','/auth/register','/auth/login','/docs','/openapi.json','/redoc']: return await call_next(request)
         token=request.headers.get('authorization','').removeprefix('Bearer ')
         with b.connect() as db:

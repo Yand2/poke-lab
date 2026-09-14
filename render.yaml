@@ -17,6 +17,6 @@ services:
       - key: LLM_BASE_URL
         value: https://api.deepseek.com
       - key: AI_DAILY_USER_LIMIT
-        value: "10"
+        value: "100"
       - key: AI_DAILY_GLOBAL_LIMIT
         value: "100"

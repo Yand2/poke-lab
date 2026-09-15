@@ -32,5 +32,5 @@ def prepare(text):
             field=getattr(draft,name)
             if field.source=='原文提取' and (not field.evidence or field.evidence not in text):raise ValueError('原文依据不匹配')
             if field.source!='原文提取' and field.evidence:raise ValueError('建议不能伪造原文依据')
-    try:return request_json(DRAFT_PROMPT,{'text':text},IdeaDraft,validate=validate,thinking='disabled')
+    try:return request_json(DRAFT_PROMPT,{'text':text},IdeaDraft,validate=validate,thinking='disabled',deadline_seconds=120,max_tokens=2500)
     except Exception:raise HTTPException(502,'暂时未能整理好想法。原文已保留，你可以重试，或直接生成实验结果。') from None

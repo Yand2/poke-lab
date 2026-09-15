@@ -68,3 +68,5 @@
 
 /* Keep account controls visible with the administrator navigation item. */
 .sidebar:has(a[href="#/admin"]) .side-note{display:none}.sidebar .side-bottom{flex-shrink:0}.sidebar nav{flex-shrink:0}#admin-create[hidden]{display:none}@media(max-width:600px){.page-title:has(#admin-logout){flex-wrap:wrap}.page-title:has(#admin-logout)> .flex{width:100%;justify-content:space-between}}
+
+.guide-card:has(.guide-cta){display:flex;flex-direction:column}.guide-card .guide-cta{margin-top:auto;align-self:flex-start;min-width:150px;min-height:44px;justify-content:center}
